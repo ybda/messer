@@ -1,7 +1,7 @@
 use clap::{command, Arg, ArgMatches};
-use std::process;
-
-// messer /home/user/.config -s "source text" -r "replacement text" -i
+use std::env;
+use std::fs::File;
+use std::path::PathBuf;
 
 const DIRECTORY_ARG: &str = "directory";
 const SOURCE_TEXT_ARG: &str = "source-text";
@@ -10,45 +10,38 @@ const CASE_INSENSITIVE_ARG: &str = "case-insensitive";
 
 #[derive(Debug)]
 pub struct Config<'a> {
-    pub directory: &'a std::path::PathBuf,
+    pub directory: &'a PathBuf,
     pub source_text: &'a str,
     pub replacement_text: &'a str,
     pub case_insensitive: bool,
 }
 
 impl<'a> Config<'a> {
-    pub fn new(matches: &'a clap::ArgMatches) -> Config<'a> {
-        let directory = matches
-            .get_one::<std::path::PathBuf>(DIRECTORY_ARG).unwrap();
-        let source_text = matches
-            .get_one::<String>(SOURCE_TEXT_ARG).unwrap();
-        let replacement_text = matches
-            .get_one::<String>(REPLACEMENT_TEXT_ARG).unwrap();
-        let case_insensitive: bool = matches
-            .get_flag(CASE_INSENSITIVE_ARG);
-        
+    pub fn new(matches: &'a clap::ArgMatches) -> Result<Config<'a>, String> {
         let config = Config {
-            directory,
-            source_text,
-            replacement_text,
-            case_insensitive,
+            directory: matches
+                .get_one::<PathBuf>(DIRECTORY_ARG)
+                .unwrap(),
+            source_text: matches.get_one::<String>(SOURCE_TEXT_ARG).unwrap(),
+            replacement_text: matches.get_one::<String>(REPLACEMENT_TEXT_ARG).unwrap(),
+            case_insensitive: matches.get_flag(CASE_INSENSITIVE_ARG),
         };
 
-        config.validate();
+        config.validate()?;
 
-        config
+        Ok(config)
     }
 
-    pub fn validate(&self) {
+    pub fn validate(&self) -> Result<(), &'static str> {
         if !self.directory.exists() {
-            println!("Error: path `{}` doesn't exist", self.directory.display());
-            process::exit(1);
+            return Err("Path does not exist");
         }
-    
+
         if !self.directory.is_dir() {
-            println!("Error: `{}` is not a directory", self.directory.display());
-            process::exit(1);
+            return Err("Path is not a directory");
         }
+
+        Ok(())
     }
 }
 
@@ -58,7 +51,7 @@ pub fn matches() -> ArgMatches {
         .arg(
             Arg::new(DIRECTORY_ARG)
                 .required(true)
-                .value_parser(clap::value_parser!(std::path::PathBuf))
+                .value_parser(clap::value_parser!(PathBuf))
                 .help("Directory with text files to be edited")
         )
         .arg(
@@ -80,4 +73,53 @@ pub fn matches() -> ArgMatches {
                 .num_args(0)
         )
         .get_matches()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use super::*;
+
+    #[test]
+    fn test_path_doesnt_exist_validation() {
+        let temp_dir = env::temp_dir();
+
+        let path_that_doesnt_exist = temp_dir.join("messer_path_that_doesnt_exist_032563575713");
+
+        let config: Config = Config { 
+            directory: &path_that_doesnt_exist,
+            source_text: "_",
+            replacement_text: "_",
+            case_insensitive: false
+        };
+
+        assert_eq!(config.validate(), Err("Path does not exist"));
+    }
+
+    #[test]
+    fn test_path_is_not_dir() {
+        let temp_dir = env::temp_dir();
+
+        let test_file_path: PathBuf = temp_dir.join("messer_temp_test_file");
+
+        File::create(&test_file_path).unwrap_or_else(|e| {
+            panic!("Error: {}", e)
+        });
+
+        let config: Config = Config { 
+            directory: &test_file_path,
+            source_text: "_",
+            replacement_text: "_",
+            case_insensitive: false
+        };
+
+        let validate_result = config.validate();
+
+        fs::remove_file(&test_file_path).unwrap_or_else(|e| {
+            panic!("Error: {}", e)
+        });
+
+        assert_eq!(validate_result, Err("Path is not a directory"));
+    }
 }

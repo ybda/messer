@@ -1,3 +1,6 @@
+messer
+------
+
 # Usage
 ```
 $ messer --help
