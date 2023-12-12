@@ -6,6 +6,7 @@ use std::path::PathBuf;
 const DIRECTORY_ARG: &str = "directory";
 const SOURCE_TEXT_ARG: &str = "source-text";
 const REPLACEMENT_TEXT_ARG: &str = "replacement-text";
+const VERBOSE_ARG: &str = "verbose";
 const CASE_INSENSITIVE_ARG: &str = "case-insensitive";
 
 #[derive(Debug)]
@@ -13,17 +14,17 @@ pub struct Config<'a> {
     pub directory: &'a PathBuf,
     pub source_text: &'a str,
     pub replacement_text: &'a str,
+    pub verbose: bool,
     pub case_insensitive: bool,
 }
 
 impl<'a> Config<'a> {
     pub fn new(matches: &'a clap::ArgMatches) -> Result<Config<'a>, String> {
         let config = Config {
-            directory: matches
-                .get_one::<PathBuf>(DIRECTORY_ARG)
-                .unwrap(),
+            directory: matches.get_one::<PathBuf>(DIRECTORY_ARG).unwrap(),
             source_text: matches.get_one::<String>(SOURCE_TEXT_ARG).unwrap(),
             replacement_text: matches.get_one::<String>(REPLACEMENT_TEXT_ARG).unwrap(),
+            verbose: matches.get_flag(VERBOSE_ARG),
             case_insensitive: matches.get_flag(CASE_INSENSITIVE_ARG),
         };
 
@@ -67,8 +68,16 @@ pub fn matches() -> ArgMatches {
                 .required(true)
         )
         .arg(
+            Arg::new(VERBOSE_ARG)
+                .short('v')
+                .long("verbose")
+                .help("Print name of each changed file")
+                .num_args(0)
+        )
+        .arg(
             Arg::new(CASE_INSENSITIVE_ARG)
                 .short('i')
+                .long("ignore-case")
                 .help("Perform a case-insensitive search")
                 .num_args(0)
         )
@@ -87,11 +96,12 @@ mod tests {
 
         let path_that_doesnt_exist = temp_dir.join("messer_path_that_doesnt_exist_032563575713");
 
-        let config: Config = Config { 
+        let config: Config = Config {
             directory: &path_that_doesnt_exist,
             source_text: "_",
             replacement_text: "_",
-            case_insensitive: false
+            verbose: false,
+            case_insensitive: false,
         };
 
         assert_eq!(config.validate(), Err("Path does not exist"));
@@ -103,22 +113,19 @@ mod tests {
 
         let test_file_path: PathBuf = temp_dir.join("messer_temp_test_file");
 
-        File::create(&test_file_path).unwrap_or_else(|e| {
-            panic!("Error: {}", e)
-        });
+        File::create(&test_file_path).unwrap_or_else(|e| panic!("Error: {}", e));
 
-        let config: Config = Config { 
+        let config: Config = Config {
             directory: &test_file_path,
             source_text: "_",
             replacement_text: "_",
-            case_insensitive: false
+            verbose: false,
+            case_insensitive: false,
         };
 
         let validate_result = config.validate();
 
-        fs::remove_file(&test_file_path).unwrap_or_else(|e| {
-            panic!("Error: {}", e)
-        });
+        fs::remove_file(&test_file_path).unwrap_or_else(|e| panic!("Error: {}", e));
 
         assert_eq!(validate_result, Err("Path is not a directory"));
     }

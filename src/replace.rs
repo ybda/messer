@@ -16,36 +16,28 @@ fn replace_case_insensitive(source: &str, find: &str, replace: &str) -> String {
     result.into()
 }
 
-fn replace_text_in_file(
-    file_path: &Path,
-    source_text: &str,
-    replacement_text: &str,
-    case_insensitive: bool,
-) -> io::Result<()> {
+fn process_file(config: &Config, file_path: &Path) -> io::Result<()> {
     let mut content = String::new();
     let mut file = File::open(file_path)?;
 
     file.read_to_string(&mut content)?;
 
-    let replaced_content = if case_insensitive {
-        replace_case_insensitive(&content, source_text, replacement_text)
+    let replaced_content = if config.case_insensitive {
+        replace_case_insensitive(&content, config.source_text, config.replacement_text)
     } else {
-        content.replace(source_text, replacement_text)
+        content.replace(config.source_text, config.replacement_text)
     };
 
-    let mut file = File::create(file_path)?;
-    file.write_all(replaced_content.as_bytes())?;
+    if content != replaced_content {
+        let mut file = File::create(file_path)?;
+        file.write_all(replaced_content.as_bytes())?;
+
+        if config.verbose {
+            println!("Changed file: {}", file_path.to_str().unwrap());
+        }
+    }
 
     Ok(())
-}
-
-fn process_file(config: &Config, file_path: &Path) -> io::Result<()> {
-    replace_text_in_file(
-        file_path,
-        config.source_text,
-        config.replacement_text,
-        config.case_insensitive,
-    )
 }
 
 pub fn replace_text_in_files(config: &Config) -> io::Result<()> {
