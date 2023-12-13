@@ -1,3 +1,4 @@
+use crate::error::{Error, Result};
 use clap::{command, Arg, ArgMatches};
 use std::env;
 use std::fs::File;
@@ -21,7 +22,7 @@ pub struct Config<'a> {
 }
 
 impl<'a> Config<'a> {
-    pub fn new(matches: &'a clap::ArgMatches) -> Result<Config<'a>, String> {
+    pub fn new(matches: &'a clap::ArgMatches) -> Result<Config<'a>> {
         let config = Config {
             directory: matches.get_one::<PathBuf>(DIRECTORY_ARG).unwrap(),
             source_text: matches.get_one::<String>(SOURCE_TEXT_ARG).unwrap(),
@@ -36,13 +37,17 @@ impl<'a> Config<'a> {
         Ok(config)
     }
 
-    pub fn validate(&self) -> Result<(), &'static str> {
+    pub fn validate(&self) -> Result<()> {
         if !self.directory.exists() {
-            return Err("Path does not exist");
+            return Err(Error::IoPathNotFound(
+                self.directory.to_str().unwrap().to_string(),
+            ));
         }
 
         if !self.directory.is_dir() {
-            return Err("Path is not a directory");
+            return Err(Error::IoExpectedDirectory(
+                self.directory.to_str().unwrap().to_string(),
+            ));
         }
 
         Ok(())
@@ -106,7 +111,7 @@ mod tests {
 
         let path_that_doesnt_exist = temp_dir.join("messer_path_that_doesnt_exist_032563575713");
 
-        let config: Config = Config {
+        let config = Config {
             directory: &path_that_doesnt_exist,
             source_text: "_",
             replacement_text: "_",
@@ -115,7 +120,10 @@ mod tests {
             interactive: false,
         };
 
-        assert_eq!(config.validate(), Err("Path does not exist"));
+        assert!(matches!(
+            config.validate(),
+            Err(Error::IoPathNotFound { .. })
+        ));
     }
 
     #[test]
@@ -139,6 +147,9 @@ mod tests {
 
         fs::remove_file(&test_file_path).unwrap_or_else(|e| panic!("Error: {}", e));
 
-        assert_eq!(validate_result, Err("Path is not a directory"));
+        assert!(matches!(
+            validate_result,
+            Err(Error::IoExpectedDirectory { .. })
+        ));
     }
 }

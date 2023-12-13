@@ -1,9 +1,10 @@
 use crate::config::Config;
+use crate::error::Result;
 use crate::util;
 use regex::{self, Regex};
 use std::borrow::Cow;
 use std::fs::File;
-use std::io::{self, Read, Write};
+use std::io::{Read, Write};
 use std::path::Path;
 use walkdir::WalkDir;
 
@@ -18,7 +19,7 @@ fn replace_case_insensitive(source: &str, find: &str, replace: &str) -> String {
     result.into()
 }
 
-fn process_file(config: &Config, file_path: &Path) -> io::Result<()> {
+fn process_file(config: &Config, file_path: &Path) -> Result<()> {
     if config.interactive {
         let prompt: String = format!("messer: change file '{}'", file_path.to_str().unwrap());
         if !util::prompt_user(prompt.as_str(), false) {
@@ -26,20 +27,20 @@ fn process_file(config: &Config, file_path: &Path) -> io::Result<()> {
         }
     }
 
-    let mut file: File = File::open(file_path)?;
+    let mut file = File::open(file_path)?;
 
     let mut content: String = String::new();
     file.read_to_string(&mut content)?;
 
-    let replaced_content: String = if config.case_insensitive {
+    let new_content: String = if config.case_insensitive {
         replace_case_insensitive(&content, config.source_text, config.replacement_text)
     } else {
         content.replace(config.source_text, config.replacement_text)
     };
 
-    if content != replaced_content {
+    if content != new_content {
         let mut file: File = File::create(file_path)?;
-        file.write_all(replaced_content.as_bytes())?;
+        file.write_all(new_content.as_bytes())?;
 
         if config.verbose {
             println!("messer: changed '{}'", file_path.to_str().unwrap());
@@ -49,7 +50,7 @@ fn process_file(config: &Config, file_path: &Path) -> io::Result<()> {
     Ok(())
 }
 
-pub fn replace_text_in_files(config: &Config) -> io::Result<()> {
+pub fn replace_text_in_files(config: &Config) -> Result<()> {
     for entry in WalkDir::new(&config.directory)
         .into_iter()
         .filter_map(|e| e.ok())
