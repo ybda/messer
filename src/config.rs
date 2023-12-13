@@ -8,6 +8,7 @@ const SOURCE_TEXT_ARG: &str = "source-text";
 const REPLACEMENT_TEXT_ARG: &str = "replacement-text";
 const VERBOSE_ARG: &str = "verbose";
 const CASE_INSENSITIVE_ARG: &str = "case-insensitive";
+const INTERACTIVE_ARG: &str = "interactive";
 
 #[derive(Debug)]
 pub struct Config<'a> {
@@ -16,6 +17,7 @@ pub struct Config<'a> {
     pub replacement_text: &'a str,
     pub verbose: bool,
     pub case_insensitive: bool,
+    pub interactive: bool,
 }
 
 impl<'a> Config<'a> {
@@ -26,6 +28,7 @@ impl<'a> Config<'a> {
             replacement_text: matches.get_one::<String>(REPLACEMENT_TEXT_ARG).unwrap(),
             verbose: matches.get_flag(VERBOSE_ARG),
             case_insensitive: matches.get_flag(CASE_INSENSITIVE_ARG),
+            interactive: matches.get_flag(INTERACTIVE_ARG),
         };
 
         config.validate()?;
@@ -81,6 +84,13 @@ pub fn matches() -> ArgMatches {
                 .help("Perform a case-insensitive search")
                 .num_args(0)
         )
+        .arg(
+            Arg::new(INTERACTIVE_ARG)
+                .short('I')
+                .long("interactive")
+                .help("Prompt before every file change")
+                .num_args(0)
+        )
         .get_matches()
 }
 
@@ -102,6 +112,7 @@ mod tests {
             replacement_text: "_",
             verbose: false,
             case_insensitive: false,
+            interactive: false,
         };
 
         assert_eq!(config.validate(), Err("Path does not exist"));
@@ -109,7 +120,7 @@ mod tests {
 
     #[test]
     fn test_path_is_not_dir() {
-        let temp_dir = env::temp_dir();
+        let temp_dir: PathBuf = env::temp_dir();
 
         let test_file_path: PathBuf = temp_dir.join("messer_temp_test_file");
 
@@ -121,6 +132,7 @@ mod tests {
             replacement_text: "_",
             verbose: false,
             case_insensitive: false,
+            interactive: false,
         };
 
         let validate_result = config.validate();

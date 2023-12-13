@@ -1,6 +1,7 @@
 mod config;
 use config::Config;
 mod replace;
+mod util;
 use std::process;
 
 fn main() {
