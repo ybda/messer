@@ -43,7 +43,7 @@ fn process_file(config: &Config, file_path: &Path) -> Result<()> {
         file.write_all(new_content.as_bytes())?;
 
         if config.verbose {
-            println!("messer: changed '{}'", file_path.to_str().unwrap());
+            println!("[messer]: changed '{}'", file_path.to_str().unwrap());
         }
     }
 
@@ -56,7 +56,14 @@ pub fn replace_text_in_files(config: &Config) -> Result<()> {
         .filter_map(|e| e.ok())
     {
         if entry.file_type().is_file() {
-            process_file(config, entry.path())?;
+            let entry_path = entry.path();
+            process_file(config, entry_path).map_err(|err| {
+                format!(
+                    "Failed processing '{}': {}",
+                    entry_path.to_str().unwrap(),
+                    err
+                )
+            })?;
         }
     }
 
